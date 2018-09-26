@@ -15,6 +15,9 @@
 //Deadlock
 //Thread Sanitizer để xem lỗi các thread truy cập cùng lúc
 import UIKit
+//Chú ý: Cơ chế chạy từ trên xuống dưới theo tuần tự gọi là: blocking FIFO
+//Tìm hiểu thêm: https://medium.com/modernnerd-code/grand-central-dispatch-crash-course-for-swift-3-8bf2652c1cb8
+//GDC và NSOperation(Operation 4.0) dưới ios 4.0 thì nằm đọc lập và ngược lại. GDC viết bằng Objective-C, nhưng NSOperation được viết thành những đối tượng, kết thừa nó và sau đó dùng nó
 
 class ViewController: UIViewController {
 
@@ -87,8 +90,59 @@ class ViewController: UIViewController {
          self.lb.text=String(sum)
          }
          */
+        /*
+         Hàm thường dùng DispatchQueue để bắt đồng bộ
+         let queue = DispatchQueue(label: "queuegroup")
+         queue.async{
+             //Xử lí dữ liệu internet
+             DispatchQueue.main.async{
+                //Cập nhật dữ liệu trên UI chính. Chú ý nếu để hàm bên ngoài sẽ bị deadlock vì hàm main chờ hàm main
+             }
+         }
+         */
+        //DispathGroup: Cho phép quản lí một nhóm các tác vụ
+        let group = DispatchGroup()
+        let queue = DispatchQueue(label: "queuegroup")
+        //Bắt đầu bắm giờ
+        group.enter()
+        queue.async {
+            for i in 0..<200000{
+                print("Xử lý: \(i)")
+            }
+            group.leave()
+        }
+        //Nếu thời gian 3s mà xử lí xong 20 thì xuất ra success
+        //Nếu trong 3s mà không xử lí hết 20 thì sẽ timeout, tuy hết thời gian nhưng vẫn chạy tiếp tục
+        let result = group.wait(timeout: DispatchTime.now()+3)
+        print(result)
+        
+        
+        //Bắt đầu xử lí thread pool
+        //let queue = OperationQueue()
+        //Mỗi lần chỉ xử lí một thread, nếu không có thì nó xử lí cùng một lúc hết tất cả
+        //queue.maxConcurrentOperationCount=4
+        //for i in 0..<20{
+        //    queue.addOperation {
+        //        print("Xử lí \(i)")
+        //        sleep(100)
+        //    }
+        //      queue.addOperation(Op(n: i))
+        //}
+        
+        //queue.waitUntilAllOperationsAreFinished()
+        //queue.cancelAllOperations()
+        
     }
-
+    class Op:Operation{
+        var i: Int
+        init(n:Int){
+            i=n
+        }
+        override func main() {
+            print("Xử lí: \(i)")
+            //sleep(100)
+        }
+    }
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         
